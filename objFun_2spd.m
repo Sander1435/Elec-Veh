@@ -1,94 +1,93 @@
-function [fVal] = objFun_2spd(x)
-% objFun_2spd Objective function for optimizing EV_2spd_4AUB10_2023b
+function [fVal, overspeed] = objFun_2spd(x)
+% OBJFUN_2SPD  Objective function for optimizing run_EV_PT_2spd.m
 %
-% INPUT:
-%   x : design vector, e.g. [g1, g2, scale_EM, Np, Ns, motortype, motornumberinit, BatterySort, CellSort, shiftPoint]
-%
-% OUTPUT:
-%   fVal : the "cost" to be minimized (kWh/100km or Inf if constraints not met)
+% This version puts *all* variables used by the blocks into the base
+% workspace before calling the base script. Then the blocks that reference
+% them (like init_SoC, Np, Ns, scale_EM, etc.) can find them.
 
-%% Make sure we reference the global variable for N_sim if you use it
-global N_sim
+    % By default we won't detect overspeed unless an error is thrown
+    overspeed = false;
+    fVal = 1e9;
 
-% --- 1) EXTRACT DESIGN VARIABLES FROM x
-g1              = x(1);   % 1st gear ratio
-g2              = x(2);   % 2nd gear ratio
-scale_EM        = x(3);   % motor scale factor
-Np              = x(4);   % # parallel battery cells
-Ns              = x(5);   % # series battery cells
-motortype       = x(6);   % 1=PMSM, 2=AC Induction
-motornumberinit = x(7);   % index to pick e.g. "32 kW", "58 kW", etc.
-BatterySort     = x(8);   % 1=High Energy, 2=High Power
-CellSort        = x(9);   % e.g. NMC=1, LFP=1, ...
-s1              = x(10);  % shift threshold (motor speed)
+    % If you want to vary 4 parameters: [g1, g2, scaleEM, shiftPoint],
+    % let's say x has exactly 4 elements:
+    if length(x) < 4
+        error('objFun_2spd: input x must have >= 4 elements: [g1, g2, scale_EM, shift].');
+    end
 
-% --- 2) SET ANY HARD-CODED REQUIREMENTS
-ta_req    = 9;    % e.g. must accelerate 0-100 km/h in under 9s
-vmax_req  = 140;  % must reach at least 140 km/h
-% You can adjust these to your actual constraints
+    %% 1) Extract your design variables from x
+    %   We'll let these four be the ones we optimize.
+    g1_val     = x(1);
+    g2_val     = x(2);
+    scale_val  = x(3);
+    s1_val     = x(4);
 
-% --- 3) LOAD / OPEN SIMULINK MODEL
-sys_name = 'EV_2spd_4AUB10_2023b';
-% Instead of open(...), do "load_system(...)" in an optimization to avoid popups
-load_system(sys_name);
+    %% 2) Provide default / fixed values for the other parameters
+    %   The model references them by name (init_SoC, Np, Ns, etc.)
+    %   If you want to optimize them too, just read them from x() also.
+    init_SoC = 90;            % e.g. SoC start
+    Np_val   = 16;            % #parallel
+    Ns_val   = 96;            % #series
+    BatterySort_val = 1;      % 1=HighEnergy
+    CellSort_val    = 1;      % e.g. NMC
+    motortype_val   = 1;      % 1=PMSM
+    motornumberinit_val = 1;  % which motor rating
+    Ploss_val       = 100;    % for the gearbox
+    wem_min_val     = 1;
+    e_gb_val        = 0.97;
 
-% --- 4) PUSH PARAMETERS INTO WORKSPACE (or set them in the script directly)
-% We do this by assigning them in the base workspace. Another approach is
-% to define them as global variables if your code references them that way.
-assignin('base','g1',g1);
-assignin('base','g2',g2);
-assignin('base','scale_EM',scale_EM);
-assignin('base','Np',Np);
-assignin('base','Ns',Ns);
-assignin('base','motortype',motortype);
-assignin('base','motornumberinit',motornumberinit);
-assignin('base','BatterySort',BatterySort);
-assignin('base','CellSort',CellSort);
-assignin('base','s1',s1);
+    % If needed, you can also define any other variables the blocks reference
+    % e.g. "mem", "mv", etc. Usually, you compute them in the base script,
+    % so we only need to pass in the "inputs" to that script. The script
+    % can then compute mem, mv, etc. But if the blocks themselves want e.g. 'mv'
+    % directly, you'd also do assignin('base','mv', someValue).
 
-% If your code references other variables (like init_SoC=90), you can do:
-%   assignin('base','init_SoC',90);
-% Or if your code sets them directly, that’s fine too.
+    %% 4) Run the base script inside a specialized try/catch
+    %    (only handle overspeed; rethrow everything else)
+    try
+        run('run_EV_PT_2spd.m');
+    catch ME
+        if strcmp(ME.identifier,'Simulink:Engine:OverSpeed')
+            fVal = Inf;
+            overspeed = true;
+            return;
+        else
+            rethrow(ME); % rethrow other errors to see them
+        end
+    end
 
-% --- 5) RUN THE SIMULATION
-try
-    simOut = sim(sys_name, 'SrcWorkspace','base');
-catch ME
-    % If an error occurs (like overspeed) => cost = Inf
-    fVal = Inf;
-    return
+    %% 5) Retrieve final consumption from base workspace
+    if evalin('base','exist(''cons_result'',''var'')')
+        fVal = evalin('base','cons_result');
+    else
+        fVal = Inf;
+        return;
+    end
+
+    %% 6) Check constraints
+    %    We assume top speed is in m/s, so multiply by 3.6 for the 150 km/h constraint.
+    ta_req   = 11;   % must do 0-100 in <= 11s
+    vmax_req = 150;  % must be >= 150 km/h
+
+    if evalin('base','exist(''ta'',''var'')')
+        ta_sim = evalin('base','ta');
+    else
+        ta_sim = 999;
+    end
+
+    if evalin('base','exist(''vmax'',''var'')')
+        vmax_mps = evalin('base','vmax');
+        vmax_kmh = vmax_mps * 3.6;
+    else
+        vmax_kmh = 0;
+    end
+
+    if ta_sim > ta_req
+        fVal = Inf;
+    end
+
+    if vmax_kmh < vmax_req
+        fVal = Inf;
+    end
+
 end
-
-% If the sim ran, retrieve final consumption:
-cons_result = simOut.Consumption(end);
-
-% Check if simulation ended before finishing
-if length(simOut.t) < N_sim
-    fVal = Inf;
-    return
-end
-
-% --- 6) RETRIEVE PERFORMANCE FIGURES
-ta    = simOut.ta(1);    % your script or workspace might store acceleration time in simOut
-vmax  = simOut.vmax(1);  % top speed in m/s or km/h, depends on your code
-
-% If your model calculates them differently, read or compute them accordingly,
-% e.g. from your "ta = (lambda*mv*(vb^2+vf^2))/(...)" expression in the script.
-
-% Convert vmax to km/h if it’s in m/s
-%   vmax_kmh = vmax * 3.6;
-
-% --- 7) CHECK CONSTRAINTS
-if ta > ta_req
-    fVal = Inf;
-    return
-end
-
-% If your code’s "vmax" is in m/s, compare to (vmax_req / 3.6). Otherwise if it’s in km/h, compare directly
-if vmax < vmax_req
-    fVal = Inf;
-    return
-end
-
-% --- 8) IF FEASIBLE => fVal = consumption
-fVal = cons_result;   % e.g. kWh/100 km
