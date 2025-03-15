@@ -1,0 +1,94 @@
+clc, clear, close all
+% Tref=25;%reference temperature [C]
+varNames = {'DoD','V'};
+celldata.data.d1_0C = renamevars(readtable('LTO1discharge1_0C.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.data.d3_0C = renamevars(readtable('LTO1discharge3_0C.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.data.d6_0C = renamevars(readtable('LTO1discharge6_0C.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.data.d1_0C25 = renamevars(readtable('LTO1discharge1_0C25Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.data.d1_0C50 = renamevars(readtable('LTO1discharge1_0C50Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.data.d1_0Cmin20 = renamevars(readtable('LTO1discharge1_0Cmin20Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.curvepoints=renamevars(readtable('curvepoints5.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["DoD","V"]);
+celldata.cycledata.dod100D1_0C25c1_0C=renamevars(readtable('LTO1Cycle100DOD1_0C25Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["Cycles","SoH"]);
+celldata.cycledata.dod100D3_0C25c1_0C=renamevars(readtable('LTO1Cycle100DOD3_0C25Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["Cycles","SoH"]);
+celldata.cycledata.dod100D6_0C25c1_0C=renamevars(readtable('LTO1Cycle100DOD6_0C25Celcius.csv','Delimiter','semi','DecimalSeparator','.'),["Var1","Var2"],["Cycles","SoH"]);
+% Capacity to DoD 
+names=fieldnames(celldata.data);
+capacityarray=9*ones(1,9);
+
+%% Data from datasheet
+name={};
+unit={};
+data=[];
+% Capacity
+name=[name,'Capacity'];
+unit=[unit,"Ah"];
+data=[data,9.0];
+name=[name,'CapacityCurrent'];
+unit=[unit,"A"];
+data=[data,2*9.0];
+name=[name,'CurvepointCurrent'];
+unit=[unit,"A"];
+data=[data,3*9.0];
+% Voltage data
+name=[name,'Nom_Voltage'];
+unit=[unit,"V"];
+data=[data,2.3];
+name=[name,'Max_Voltage'];
+unit=[unit,"V"];
+data=[data,2.9];
+name=[name,'Min_Voltage'];
+unit=[unit,"V"];
+data=[data,1.5];
+% Current data
+name=[name,'Max_Charge_Current'];
+unit=[unit,"A"];
+data=[data,135.0];
+name=[name,'Max_disCharge_Current'];
+unit=[unit,"A"];
+data=[data,135.0];
+% Temperature limits
+name=[name,'Max_Charge_Temperature'];
+unit=[unit,"K"];
+data=[data,65+273.15];
+name=[name,'Min_Charge_Temperature'];
+unit=[unit,"K"];
+data=[data,-40+273.15];
+name=[name,'Max_disCharge_Temperature'];
+unit=[unit,"K"];
+data=[data,65+273.15];
+name=[name,'Min_disCharge_Temperature'];
+unit=[unit,"K"];
+data=[data,-40+273.15];
+name=[name,'Reference_Temperature'];
+unit=[unit,"K"];
+data=[data,25+273.15];
+% weight
+name=[name,'Weight'];
+unit=[unit,"kg"];
+data=[data,0.270];
+
+%% dod adjustment
+DODorCAPACITY=2; %0 for DoD, 1 for Capacity from N-0(Ah), 2 for Capacity from 0-N(Ah)
+
+if DODorCAPACITY==1
+     celldata.curvepoints.DoD=1-celldata.curvepoints.DoD./capacityarray(1);
+for i=1:length(names)
+   
+celldata.data.(names{i}).DoD=1-celldata.data.(names{i}).DoD./capacityarray(i+1);
+end
+elseif DODorCAPACITY==2
+ celldata.curvepoints.DoD=celldata.curvepoints.DoD./capacityarray(1);
+for i=1:length(names)
+celldata.data.(names{i}).DoD=celldata.data.(names{i}).DoD./capacityarray(i+1);
+end
+end
+
+%% saving data
+celldata.datatable=array2table(data);
+celldata.datatable.Properties.VariableNames=name;
+celldata.datatable.Properties.VariableUnits=unit;
+celldata.cellname='LTO9Ah';
+celldata.chemistry="LTO";
+celldata.realcellname='LTO32140 LTO 9Ah';
+clearvars unit data name Tref DODorCAPACITY capacityarray
+save LTO9DATA.mat
