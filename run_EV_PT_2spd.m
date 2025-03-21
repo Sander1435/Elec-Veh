@@ -20,7 +20,7 @@ global s1
 global h
 %% Parameters definition
 % Model parameters for EV with -spd
-x = [13.1866 4.104 0.6 26 318 2 2 1 1 54.27];  % set of input design parameters, x
+x = [13.1866 4.42 0.506 30 285 2 2 1 1 57.61];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
@@ -141,6 +141,46 @@ disp(['Vehicle mass        = ', num2str(mv), ' [kg]']);
 disp(['Acceleration time   = ', num2str(ta), ' [s]']);
 disp(['Max. speed          = ', num2str(vmax*3.6), ' [km/h]']);
 
+%%
+switch BatterySort
+    case 1  % High Energy
+        switch CellSort
+            case 1  % e.g. NMC
+                V_cell_max = 4.2; 
+            case 2  % e.g. NMC_M35A
+                V_cell_max = 4.2;
+            otherwise
+                V_cell_max = 4.2; % fallback
+        end
+    case 2  % High Power
+        switch CellSort
+            case 1  % LFP
+                V_cell_max = 3.65;
+            case 2  % LTO
+                V_cell_max = 2.7;
+            case 3  % NCA
+                V_cell_max = 4.2;
+            case 4  % NCAVTC
+                V_cell_max = 4.2;
+            otherwise
+                V_cell_max = 4.2; % fallback
+        end
+    otherwise
+        % If unknown, pick a default or raise a warning
+        V_cell_max = 4.2;
+end
+
+% 2) Compute the maximum battery pack voltage:
+battery_pack_max_voltage = Ns * V_cell_max;
+
+% 3) Display or log it:
+disp(['Battery pack max voltage: ', num2str(battery_pack_max_voltage), ' V']);
+
+% 4) Check if it exceeds 1200 V:
+if battery_pack_max_voltage > 1200
+    warning(['Battery pack max voltage (', ...
+             num2str(battery_pack_max_voltage), ' V) exceeds 1200 V limit!']);
+end
 %% --- Price and TCO Calculations ---
 battery_cost_per_kWh = 200;    % [euro/kWh]
 motor_cost_per_kW    = 16;      % [euro/kW] for the E-machine
