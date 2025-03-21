@@ -1,14 +1,19 @@
 %% Setting up parameters of different componenets
-global scale_EM g1
+global g1
+global g2
+global scale_EM
+global Np
+global Ns
+global s1
 global mv
 % Gear box 
 e_gb    = 0.97;   % internal efficiency [-]
 Ploss   = 100;    % stationary losses [W]
 wem_min = 1;      % Minimum wheel speed beyond which losses are generated [rad/s]
 
-% Init of the Simple Transmission block
-path= [sys_name,'/Simple transmission1'];
-set_param(path,'gear_ratio','g1','e_GT','e_gb','P_GT0','Ploss','w_wheel_min','wem_min');
+% Init of the Multispeed Transmission block
+path= [sys_name,'/Multispeed gearbox'];
+set_param(path,'nr_gears', '2','i_1', 'g1', 'i_2','g2','i_diff','1', 'e_GT', 'e_gb', 'P_GT0', 'Ploss', 'w_wheel_min', 'wem_min' );
 
 % Battery 
 init_SoC=90;
@@ -55,21 +60,21 @@ clear components;
 % vehicle mass
 mem=Pemmax/1e3/1.4;                 % E-machine mass [kg]
 mb     = battery_weight;          % battery mass [kg]
-mtr    = 17;                                  % 1spd transmission mass
-m0     = 1800;                                % curb mass [kg]
+mtr    = 35;                                  % 2spd transmission mass
+m0     = 1180;                                % curb mass [kg]
 mcargo = 0;                                   % cargo mass [kg]
 mv     = m0 + mb + mem + mtr + mcargo;        % vehicle mass [kg]
 
 % Vehicle parameters
 f_r    = 0.4;       %reg. brake fraction, RWD [-]
 lambda = 1.05;      % relative rotating inertia parameter [-]
-cr     = 0.008;     % rolling resistance coefficient [-]
-cd     = 0.23;      % air drag coefficient [-]
-Af     = 2.43;      % frontal area [m2]
-dw     = 0.7189;    % wheel diameter [m]
+cr     = 0.0174;     % rolling resistance coefficient [-]
+cd     = 0.29;      % air drag coefficient [-]
+Af     = 2.38;      % frontal area [m2]
+dw     = 0.6996;    % wheel diameter [m]
 
 % Init of the Vechile body block
-path= [sys_name,'/Vehicle body1'];
+path= [sys_name,'/Vehicle body'];
 set_param(path,'m_f','mv','A_f','Af','d_wheel','dw','cw','cd','mu','cr');
 
 %% Performance calculations
@@ -84,9 +89,16 @@ vb = Ptmax./(Ttmax./(dw/2)); % base vehicle speed
 vf = 100/3.6;                % final speed acceleration
 ta = (lambda*mv*(vb^2+vf^2))./(2*(Ptmax - (2/3)*mv*g*cr*vf - (1/5)*rho*cd*Af*vf^3));
 
-% Max. speed vehicle without overrevving machine
-vmax = (dw/2)* max(w_EM_max)/g1; % [m/s]
 
+% Max. speed vehicle without overrevving machine
+vmax1 = (dw/2)* max(w_EM_max)/g1; % [m/s]
+vmax2 = (2*Ptmax/(cd*Af*rho))^(1/3);
+if (vmax1 <= vmax2)
+    vmax = vmax1;
+end
+if (vmax2 < vmax1 )
+    vmax = vmax2;
+end
 
 
 

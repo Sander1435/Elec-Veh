@@ -20,7 +20,7 @@ global s1
 global h
 %% Parameters definition
 % Model parameters for EV with -spd
-x = [13.1866 4.104 0.6 26 318 2 2 1 1 54.27];  % set of input design parameters, x
+x = [10 4 2.214 24 144 2 2 1 1 100];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
@@ -147,7 +147,7 @@ motor_cost_per_kW    = 16;      % [euro/kW] for the E-machine
 inverter_cost_per_kW = 15;      % [euro/kW] for the inverter
 base_vehicle_cost    = 17000;   % [euro] (for a car)
 
-Eb = Battery_size;         % Battery pack size [kWh]
+Eb = battery_size;         % Battery pack size [kWh]
 Pm = Pemmax / 1e3;             % E-machine power [kW]
 Cb = battery_cost_per_kWh * Eb;      % Battery cost
 Cm = motor_cost_per_kW * Pm;           % Motor cost
@@ -174,16 +174,6 @@ profit_margin = 0.10;            % 10% profit margin
 sales_price   = (1 + profit_margin) * TCO;
 VAT           = 0.21;            % 21% tax (VAT)
 final_price   = sales_price * (1 + VAT);
-
-% Display cost results
-disp('--- Cost Calculations ---');
-fprintf('Total cost-of-ownership (TCO): %.2f euro\n', TCO);
-fprintf('Final price (including 21%% VAT): %.2f euro\n', final_price);
-
-%% --- Range Calculation ---
-% cons_result is [kWh/100km] and battery_size_kWh is in kWh.
-vehicle_range = Battery_size * 100 / cons_result;  % in km
-fprintf('Estimated Vehicle Range: %.2f km\n', vehicle_range);
 %% Plots (Simulink model data)
 fig = figure;
 set(fig,'NumberTitle', 'off')
