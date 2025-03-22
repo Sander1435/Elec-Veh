@@ -20,7 +20,7 @@ global s1
 global h
 %% Parameters definition
 % Model parameters for EV with -spd
-x = [13.1866 4.42 0.506 30 285 2 2 1 1 57.61];  % set of input design parameters, x
+x = [11.87 4.42 0.5055 30 285 2 2 1 1 57.61];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
