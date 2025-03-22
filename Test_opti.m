@@ -21,7 +21,7 @@ load_system(sys_name);
 
 x_result = []; y_result = []; z_result = [];
 x_guess  = [10;4;2.214;24;144;100]; 
-x = [x_guess(1) x_guess(2) x_guess(3) x_guess(4) x_guess(5) 2 2 1 1 x_guess(6)];  % set of input design parameters, x
+x = [x_guess(1) x_guess(2) x_guess(3) x_guess(4) x_guess(5) 2 2 1 2 x_guess(6)];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
