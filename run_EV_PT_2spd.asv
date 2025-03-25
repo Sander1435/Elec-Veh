@@ -6,7 +6,7 @@ clear all; close all; clc;
 %warning('off','all');
 
 %% add QSS toolbox to the path
-p = genpath('C:\Users\smaek\Desktop\TuE\Elec and Hybrid\QSS_TB');
+p = genpath('D:\GITHUB\Elec-Veh');
 addpath(p);
 
 %% Global variables
@@ -20,7 +20,7 @@ global s1
 global h
 %% Parameters definition
 % Model parameters for EV with -spd
-x = [10 4 2.214 24 144 2 2 1 1 100];  % set of input design parameters, x
+x = [11.87 4.42 0.5055 30 285 2 2 1 1 57.61];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
@@ -141,13 +141,53 @@ disp(['Vehicle mass        = ', num2str(mv), ' [kg]']);
 disp(['Acceleration time   = ', num2str(ta), ' [s]']);
 disp(['Max. speed          = ', num2str(vmax*3.6), ' [km/h]']);
 
+%%
+switch BatterySort
+    case 1  % High Energy
+        switch CellSort
+            case 1  % e.g. NMC
+                V_cell_max = 4.2; 
+            case 2  % e.g. NMC_M35A
+                V_cell_max = 4.2;
+            otherwise
+                V_cell_max = 4.2; % fallback
+        end
+    case 2  % High Power
+        switch CellSort
+            case 1  % LFP
+                V_cell_max = 3.65;
+            case 2  % LTO
+                V_cell_max = 2.7;
+            case 3  % NCA
+                V_cell_max = 4.2;
+            case 4  % NCAVTC
+                V_cell_max = 4.2;
+            otherwise
+                V_cell_max = 4.2; % fallback
+        end
+    otherwise
+        % If unknown, pick a default or raise a warning
+        V_cell_max = 4.2;
+end
+
+% 2) Compute the maximum battery pack voltage:
+battery_pack_max_voltage = Ns * V_cell_max;
+
+% 3) Display or log it:
+disp(['Battery pack max voltage: ', num2str(battery_pack_max_voltage), ' V']);
+
+% 4) Check if it exceeds 1200 V:
+if battery_pack_max_voltage > 1200
+    warning(['Battery pack max voltage (', ...
+             num2str(battery_pack_max_voltage), ' V) exceeds 1200 V limit!']);
+end
 %% --- Price and TCO Calculations ---
 battery_cost_per_kWh = 200;    % [euro/kWh]
 motor_cost_per_kW    = 16;      % [euro/kW] for the E-machine
 inverter_cost_per_kW = 15;      % [euro/kW] for the inverter
 base_vehicle_cost    = 17000;   % [euro] (for a car)
 
-Eb = battery_size;         % Battery pack size [kWh]
+Eb = Battery_size;         % Battery pack size [kWh]
 Pm = Pemmax / 1e3;             % E-machine power [kW]
 Cb = battery_cost_per_kWh * Eb;      % Battery cost
 Cm = motor_cost_per_kW * Pm;           % Motor cost
@@ -155,11 +195,11 @@ Ci = inverter_cost_per_kW * Pm;        % Inverter cost
 Cv = Cb + Cm + Ci + base_vehicle_cost; % Total component cost
 
 % Operational cost assumptions:
-electricity_cost = 0.32;       % [euro/kWh]
+electricity_cost = 0.317;       % [euro/kWh current price]
 Dc = 23.25;                    % [km]
 Es = cons_result/100 * Dc;     % [kWh/cycle]
 
-% Yearly mileage and economic life for a BMW i3
+% Yearly mileage and economic life
 Dy = 20000;   % [km/year]
 y  = 5;       % [years]
 
@@ -169,11 +209,36 @@ Ce = electricity_cost * Es * (Dy * y / Dc);
 % Total Cost-of-Ownership (TCO):
 TCO = 0.5 * Cv + Ce;
 
-% Sales price assumptions:
-profit_margin = 0.10;            % 10% profit margin
-sales_price   = (1 + profit_margin) * TCO;
-VAT           = 0.21;            % 21% tax (VAT)
-final_price   = sales_price * (1 + VAT);
+% Display cost results
+disp('--- Cost Calculations ---');
+fprintf('Total cost-of-ownership (TCO): %.2f euro\n', TCO);
+
+%% Calculate time step vector (assuming results.t is in seconds)
+dt = [diff(results.t); 0];  % Append 0 for the last time step
+
+% Compute total energy (in Joules) over the simulation cycle:
+energy_output = sum(results.P_wheel .* dt);         % Energy delivered at wheels
+energy_input  = sum((results.P_EM1 + results.Losses) .* dt);  % Energy drawn from the battery
+
+% Compute overall powertrain efficiency (as a fraction)
+powertrain_efficiency = energy_output / energy_input;
+
+fprintf('Overall powertrain efficiency: %.2f%%\n', powertrain_efficiency * 100);
+
+% Compute total energy delivered at the wheels (in Joules)
+energy_output = sum(results.P_wheel .* dt);
+
+% Total simulation time
+total_time = results.t(end) - results.t(1);
+
+% Calculate average drive power (in Watts)
+avg_drive_power = energy_output / total_time;
+
+fprintf('Average drive power: %.2f kW\n', avg_drive_power/1000);
+%% --- Range Calculation ---
+% cons_result is [kWh/100km] and battery_size_kWh is in kWh.
+vehicle_range = Battery_size * 100 / cons_result;  % in km
+fprintf('Estimated Vehicle Range: %.2f km\n', vehicle_range);
 %% Plots (Simulink model data)
 fig = figure;
 set(fig,'NumberTitle', 'off')
@@ -204,7 +269,7 @@ legend('P_{trans}', 'P_{EM}', 'P_{BT,output}');
 xlabel('P_{wheel} [kW]'); ylabel('Powers [kW]');
 %%
 fig = figure;
-set(fig,'NumberTitle', 'off') 
+set(fig,'NumberTitle', 'off')
 set(fig,'Name', 'Battery state of charge')
 plot(linspace(min(results.t),max(results.t),length(results.SoC)), results.SoC);
 grid;
@@ -212,17 +277,47 @@ ylabel('SoC [%]');
 xlabel('Time [s]');
 ylim([0 100]);
 
-fig = figure;
-
 %%
 set(fig,'NumberTitle', 'off')
 set(fig,'Name', 'Operation points')
 v = 0:0.05:2;
 [x,y]=meshgrid(w_EM_row*30/pi, T_EM_col);
-[c,h] = contourf(x,y, eta_EM_mapM',v); 
-clabel(c,h); 
+[c,h] = contourf(x,y, eta_EM_mapM',v);
+clabel(c,h);
 hold on;
 plot(w_EM_max*30/pi, T_EM_max, w_EM_max*30/pi, -T_EM_max, 'r', 'linewidth', 2);
 plot(results.w_EM1*30/pi, results.T_EM1, 'o');
-xlabel('w_{EM} [rpm]'); ylabel('T_{EM} [Nm]'); 
+xlabel('w_{EM} [rpm]'); ylabel('T_{EM} [Nm]');
 grid;
+
+%%
+%Motor Speed vs. Time with Gear Coloring ---)
+
+gear1_idx = results.w_EM1 < s1;  % operating in gear 1
+gear2_idx = results.w_EM1 >= s1; % operating in gear 2
+
+figure;
+hold on;
+plot(results.t(gear1_idx), results.w_EM1(gear1_idx), 'bo', 'DisplayName', 'Gear 1');
+plot(results.t(gear2_idx), results.w_EM1(gear2_idx), 'rs', 'DisplayName', 'Gear 2');
+xlabel('Time [s]');
+ylabel('Motor Speed [rad/s]');
+title('Motor Speed vs. Time (Gear 1 vs. Gear 2)');
+legend('Location','best');
+grid on;
+hold off;
+
+%% Time Analysis per Gear ---
+
+dt = [diff(results.t); 0];
+
+% Define gear masks based on the motor speed (w_EM1) compared to s1.
+gear1_mask = results.w_EM1 < s1;
+gear2_mask = results.w_EM1 >= s1;
+
+% Total time spent in each gear
+timeGear1 = sum(dt(gear1_mask));
+timeGear2 = sum(dt(gear2_mask));
+
+fprintf('Time in Gear 1: %.2f s\n', timeGear1);
+fprintf('Time in Gear 2: %.2f s\n', timeGear2);

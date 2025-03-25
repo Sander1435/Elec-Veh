@@ -20,7 +20,7 @@ global s1
 global h
 %% Parameters definition
 % Model parameters for EV with -spd
-x = [11.87 4.42 0.5055 30 285 2 2 1 1 57.61];  % set of input design parameters, x
+x = [11.87 4.42 0.514 30 285 2 2 1 1 57.61];  % set of input design parameters, x
 g1              = x(1);       % gear ratio [-]
 g2              = x(2);       % gear ratio [-]
 scale_EM        = x(3);       % EM scale [-]
@@ -38,7 +38,7 @@ open(sys_name);
 %% Setting up parameters of different componenets
 
 % Gear box 
-e_gb    = 0.97;   % internal efficiency [-]
+e_gb    = 0.96;   % internal efficiency [-]
 Ploss   = 100;    % stationary losses [W]
 wem_min = 1;      % Minimum wheel speed beyond which losses are generated [rad/s]
 
@@ -84,7 +84,7 @@ clear components;
 % vehicle mass
 mem=Pemmax/1e3/1.4;                 % E-machine mass [kg]
 mb     = battery_weight;          % battery mass [kg]
-mtr    = 35;                                  % 1spd transmission mass
+mtr    = 45;                                  % 1spd transmission mass
 m0     = 1180;                                % curb mass [kg]
 mcargo = 0;                                   % cargo mass [kg]
 mv     = m0 + mb + mem + mtr + mcargo;        % vehicle mass [kg]
@@ -213,6 +213,30 @@ TCO = 0.5 * Cv + Ce;
 disp('--- Cost Calculations ---');
 fprintf('Total cost-of-ownership (TCO): %.2f euro\n', TCO);
 
+%% Calculate time step vector (assuming results.t is in seconds)
+dt = [diff(results.t); 0];  % Append 0 for the last time step
+
+% Compute total energy (in Joules) over the simulation cycle:
+energy_output = sum(results.P_wheel .* dt);         % Energy delivered at wheels
+energy_input  = sum((results.P_EM1 + results.Losses) .* dt);  % Energy drawn from the battery
+
+% Compute overall powertrain efficiency (as a fraction)
+powertrain_efficiency = energy_output / energy_input;
+
+fprintf('Overall powertrain efficiency: %.2f%%\n', powertrain_efficiency * 100);
+
+%%
+% efficiency and average power 
+P_wheel = results.P_wheel/1e3;
+P_bat = (results.P_EM1+results.Losses)/1e3;
+
+E_wheel = trapz(results.t, P_wheel);
+E_bat = trapz(results.t, P_bat);
+
+eff = E_wheel/E_bat;
+
+avg_drive_power = E_wheel/(results.t(end)); % in kW
+fprintf('Average drive power: %.2f kW\n', avg_drive_power);
 %% --- Range Calculation ---
 % cons_result is [kWh/100km] and battery_size_kWh is in kWh.
 vehicle_range = Battery_size * 100 / cons_result;  % in km
