@@ -13,7 +13,7 @@ global x_result
 global y_result
 global z_result
 %% add QSS toolbox to the path
-p = genpath('C:\Users\smaek\Desktop\TuE\Elec and Hybrid\QSS_TB');
+p = genpath('F:\Github\Elec-Veh');
 addpath(p);
 sys_name = 'EV_2spd_4AUB10_2023b';
 load_system(sys_name);

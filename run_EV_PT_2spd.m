@@ -6,7 +6,7 @@ clear all; close all; clc;
 %warning('off','all');
 
 %% add QSS toolbox to the path
-p = genpath('D:\GITHUB\Elec-Veh');
+p = genpath('F:\Github\Elec-Veh');
 addpath(p);
 
 %% Global variables
@@ -213,14 +213,14 @@ TCO = 0.5 * Cv + Ce;
 disp('--- Cost Calculations ---');
 fprintf('Total cost-of-ownership (TCO): %.2f euro\n', TCO);
 
-%% Calculate time step vector (assuming results.t is in seconds)
-dt = [diff(results.t); 0];  % Append 0 for the last time step
+%% Calculate time step vector
+dt = [diff(results.t); 0]; 
 
-% Compute total energy (in Joules) over the simulation cycle:
+% Compute total energy over the simulation cycle:
 energy_output = sum(results.P_wheel .* dt);         % Energy delivered at wheels
 energy_input  = sum((results.P_EM1 + results.Losses) .* dt);  % Energy drawn from the battery
 
-% Compute overall powertrain efficiency (as a fraction)
+% Compute overall powertrain efficiency
 powertrain_efficiency = energy_output / energy_input;
 
 fprintf('Overall powertrain efficiency: %.2f%%\n', powertrain_efficiency * 100);
@@ -293,7 +293,7 @@ xlabel('w_{EM} [rpm]'); ylabel('T_{EM} [Nm]');
 grid;
 
 %%
-%Motor Speed vs. Time with Gear Coloring ---)
+% Motor Speed vs. Time
 
 gear1_idx = results.w_EM1 < s1;  % operating in gear 1
 gear2_idx = results.w_EM1 >= s1; % operating in gear 2
@@ -323,3 +323,4 @@ timeGear2 = sum(dt(gear2_mask));
 
 fprintf('Time in Gear 1: %.2f s\n', timeGear1);
 fprintf('Time in Gear 2: %.2f s\n', timeGear2);
+
