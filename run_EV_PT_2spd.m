@@ -145,25 +145,25 @@ disp(['Max. speed          = ', num2str(vmax*3.6), ' [km/h]']);
 switch BatterySort
     case 1  % High Energy
         switch CellSort
-            case 1  % e.g. NMC
+            case 1 
                 V_cell_max = 4.2; 
-            case 2  % e.g. NMC_M35A
+            case 2  
                 V_cell_max = 4.2;
             otherwise
-                V_cell_max = 4.2; % fallback
+                V_cell_max = 4.2; 
         end
     case 2  % High Power
         switch CellSort
-            case 1  % LFP
+            case 1  
                 V_cell_max = 3.65;
-            case 2  % LTO
+            case 2  
                 V_cell_max = 2.7;
-            case 3  % NCA
+            case 3  
                 V_cell_max = 4.2;
-            case 4  % NCAVTC
+            case 4  
                 V_cell_max = 4.2;
             otherwise
-                V_cell_max = 4.2; % fallback
+                V_cell_max = 4.2; 
         end
     otherwise
         % If unknown, pick a default or raise a warning
@@ -238,7 +238,6 @@ eff = E_wheel/E_bat;
 avg_drive_power = E_wheel/(results.t(end)); % in kW
 fprintf('Average drive power: %.2f kW\n', avg_drive_power);
 %% --- Range Calculation ---
-% cons_result is [kWh/100km] and battery_size_kWh is in kWh.
 vehicle_range = Battery_size * 100 / cons_result;  % in km
 fprintf('Estimated Vehicle Range: %.2f km\n', vehicle_range);
 %% Plots (Simulink model data)
@@ -313,7 +312,6 @@ hold off;
 
 dt = [diff(results.t); 0];
 
-% Define gear masks based on the motor speed (w_EM1) compared to s1.
 gear1_mask = results.w_EM1 < s1;
 gear2_mask = results.w_EM1 >= s1;
 
